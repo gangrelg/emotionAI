@@ -1,0 +1,334 @@
+<html>
+<head>
+	<title>HOME</title>
+	<style>
+	body { margin: 0; }
+	canvas { width: 100%; height: 100% }
+</style>
+</head>
+<body>
+	<div class="col-md-8" id="affdex_elements" style="display:none; width:680px;height:480px;"></div>
+	<div id="results" style="word-wrap:break-word;"></div>
+
+	<h2 id="info">SCORE: </h2>
+	<h2 id="helper">AYUDA: </h2>
+
+	<script src="js/three/build/three.min.js"></script>
+	<script src="js/three/examples/js/loaders/FBXLoader.js"></script>
+	<script src="js/inflate.min.js"></script>
+	<script src="js/three/examples/js/WebGL.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
+  		integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU="
+  		crossorigin="anonymous">
+  	</script>
+	<script src="https://download.affectiva.com/js/3.2/affdex.js"></script>
+	<script src="https://itp.nyu.edu/kinectron/kinectron.bundle.js"></script>
+	<style type="text/css">
+		#info{
+			position: absolute;
+			top: 10px;
+			width: 100%;
+			text-align: center;
+			z-index: 100;
+			display:block;
+			color: white;
+		}
+
+		#helper{
+			position: absolute;
+			top: 10px;
+			width: 100%;
+			text-align: center;
+			z-index: 100;
+			display:block;
+			color: white;
+			right: 425px;
+		}
+
+		.ui-dialog-titlebar-close {
+    		visibility: hidden;
+		}
+	</style>
+	<script>
+		//RIGHT HAND CLOSED
+		var handClosed = false;
+
+		//EMOTION VARIABLE
+		var amISad = true;
+
+		//CYCLES
+		var cycle = 0;
+
+		//SCORE
+		var score = 0;
+
+		//MOVEMENT CYCLE CHECKER VARIABLE
+		var checker = 0;
+
+		//INITIALIZE KINECTRON SERVER ON IP
+		var kinectron = new Kinectron("192.168.100.13");
+		kinectron.makeConnection();
+
+		//START KINECTRON EVENT BODY TRACKER
+		kinectron.startTrackedBodies(bodyTracked);
+
+		//FIRST EXERCISE MOVEMENT TRACKER
+		function bodyTracked(body) {
+			let hands = [];
+			var footRight = body.joints[kinectron.FOOTRIGHT];
+			var spineBase = body.joints[kinectron.SPINEBASE];
+			jQuery('#helper').text('Trata de estar en la posicion aproximada 2.1..: ' + (spineBase.cameraZ).toFixed(1));
+			if (footRight.cameraZ < 1.50 && checker == 0) {
+				checker = 1;
+				score += 100;
+				jQuery('#info').text('SCORE: ' + score);
+				scoreSound.play();
+			}
+			if (footRight.cameraX > 0 && checker == 1) {
+				checker = 2;
+				score += 50;
+				jQuery('#info').text('SCORE: ' + score);
+				scoreSound.play();
+			}
+			if (footRight.cameraZ > 2.1 && checker == 2) {
+				checker = 0;
+				score += 100;
+				jQuery('#info').text('SCORE: ' + score);
+				scoreSound.play();
+				wellDone.play();
+				cycle += 1;
+
+				if (cycle == 3) {
+					starGenerator();
+				}
+			}
+
+			for(let jointType in body.joints) {
+			    joint = body.joints[jointType];
+
+			    if (jointType == 11) {
+			      hands.rightHand = joint;
+			      hands.rightHandState = translateHandState(body.rightHandState);
+			    }
+
+			}
+
+
+			//PARAMETER CONSOLE HELPER
+
+			//console.log("Primer Movimiento: " + footRight.cameraZ);
+			console.log("Segundo Movimiento: " + footRight.cameraX);
+			//console.log("Tercer Movimiento: " + footRight.cameraZ);
+		}
+
+		function translateHandState(handState) {
+		  switch (handState) {
+		    case 0:
+		      	return 'unknown';
+
+		    case 1:
+		      	return 'notTracked';
+
+		    case 2:
+		      	return 'open';
+
+		    case 3:
+		    	console.log("Mano Cerrada!");
+		      	return 'closed';
+
+		    case 4:
+		      	return 'lasso';
+		  }
+		}
+
+		var divRoot = $("#affdex_elements")[0];
+		var width = 640;
+		var height = 480;
+		var faceMode = affdex.FaceDetectorMode.LARGE_FACES;
+		var detector = new affdex.CameraDetector(divRoot, width, height, faceMode);
+		detector.detectExpressions.smile = true;
+		detector.detectEmotions.disgust = true;
+		detector.start();
+
+		function log(node_name, msg) {
+			$(node_name).append("<span>" + msg + "</span><br />")
+		}
+
+		detector.addEventListener("onInitializeSuccess", function() {
+			$("#face_video_canvas").css("display", "none");
+			$("#face_video").css("display", "none");
+		});
+
+		detector.addEventListener("onWebcamConnectSuccess", function() {
+		});
+
+		detector.addEventListener("onWebcamConnectFailure", function() {
+			alert("Ups!, Something went wrong with your camera!!");
+		});
+
+		var scene = new THREE.Scene();
+		var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+		var renderer = new THREE.WebGLRenderer();
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		document.body.appendChild( renderer.domElement );
+
+
+		// var mixers = [];
+		// var clock = new THREE.Clock();
+		// var createdObject;
+
+		var starsGeometry = new THREE.Geometry();
+
+		for ( var i = 0; i < 1000000; i ++ ) {
+
+			var star = new THREE.Vector3();
+			star.x = THREE.Math.randFloatSpread( 2000 );
+			star.y = THREE.Math.randFloatSpread( 2000 );
+			star.z = THREE.Math.randFloatSpread( 200 );
+
+			starsGeometry.vertices.push( star );
+
+		}
+
+		var texture = [
+			new THREE.TextureLoader().load("images/particle.png"),
+		];
+
+		var starsMaterial = new THREE.PointsMaterial( { map: texture[0] } );
+
+		var starField = new THREE.Points( starsGeometry, starsMaterial );
+
+		function starGenerator(){
+			scene.add(starField);
+		}
+
+		function ConfirmDialog(message) {
+    		jQuery('<div style="background-color: black;"></div>').appendTo('body').html('<h1 style="color: white;">'+message+'?</h1>').dialog({
+        		width: '300px', resizable: false,
+        		buttons: {
+            		Yes: function () {
+                		// $(obj).removeAttr('onclick');                                
+                		// $(obj).parents('.Parent').remove();
+                		jQuery('body').append('<h1 style="color: white;">Confirm Dialog Result: <i>Yes</i></h1>');
+                		jQuery(this).dialog("close");
+            	},
+
+            		No: function () {                                                                 
+                		jQuery('body').append('<h1 style="color: white;">Confirm Dialog Result: <i>No</i></h1>');
+                		jQuery(this).dialog("close");
+                		amISad = true;
+            		}
+        		}
+    		});
+		};
+
+		var light = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+		light.position.set( 0, 200, 0 );
+		scene.add( light );
+		light = new THREE.DirectionalLight( 0xffffff );
+		light.position.set( 0, 200, 100 );
+		light.castShadow = true;
+		light.shadow.camera.top = 180;
+		light.shadow.camera.bottom = - 100;
+		light.shadow.camera.left = - 120;
+		light.shadow.camera.right = 120;
+		scene.add( light );
+
+		// var loader = new THREE.FBXLoader();
+		// var charAnimation = ['model/Neutral.fbx', 'model/Happy.fbx', 'model/Crying.fbx'];
+		// loader.load( charAnimation[0], charLoader);
+
+		// function charLoader ( object ) {
+		// 	object.name = "test";
+		// 	object.position.z = -200;
+		// 	object.position.y = -120;
+		// 	object.mixer = new THREE.AnimationMixer( object );
+		// 	console.log(object);
+		// 	if (mixers.length > 0){
+		// 		mixers.pop();
+		// 	}
+		// 	mixers.push( object.mixer );
+		// 	var action = object.mixer.clipAction( object.animations[0] );
+		// 	scene.add( object );
+		// 	action.play();
+		// } 
+
+
+		var listener = new THREE.AudioListener();
+		camera.add( listener );
+
+
+		var sound = new THREE.Audio( listener );
+
+		var audioLoader = new THREE.AudioLoader();
+		audioLoader.load( 'sound/backgroundSong.mp3', function( buffer ) {
+			sound.setBuffer( buffer );
+			sound.setLoop( true );
+			sound.setVolume( 0.5 );
+			sound.play();
+		});
+
+		var scoreSound = new THREE.Audio( listener );
+		audioLoader.load( 'sound/scoreCounter.mp3', function( buffer ) {
+			scoreSound.setBuffer( buffer );
+			scoreSound.setLoop( false );
+			scoreSound.setVolume( 2 );
+		});
+
+		var wellDone = new THREE.Audio( listener );
+		audioLoader.load( 'sound/wellDone.mp3', function( buffer ) {
+			wellDone.setBuffer( buffer );
+			wellDone.setLoop( false );
+			wellDone.setVolume( 3 );
+		});
+
+		// function emo(key, val){
+
+		// }
+
+		var animate = function () {
+
+			requestAnimationFrame( animate );
+			starField.position.y -= 0.10;
+			// if ( mixers.length > 0 ) {
+			// 	for ( var i = 0; i < mixers.length; i ++ ) {
+			// 		mixers[ i ].update( clock.getDelta() );
+			// 	}
+			// }
+			renderer.render( scene, camera );
+			detector.addEventListener("onImageResultsSuccess", function(faces, image, timestamp) {
+				$('#results').html("");
+				log('#results', "Tiempo: " + timestamp.toFixed(2));
+				if (faces.length > 0) {
+					log('#results', "Sonrisa: " + JSON.stringify(faces[0].expressions.smile, function(key, val) {
+						if (Number(val.toFixed(0)) >= 90) {
+							//selectedObject = scene.getObjectByName("test");
+							//loader.load( charAnimation[1], charLoader);
+							//scene.remove(selectedObject);
+							//sound.pause();
+						}
+						return val.toFixed ? Number(val.toFixed(0)) : val;
+					}));
+
+					log('#results', "Cansancio: " + JSON.stringify(faces[0].emotions.disgust, function(key, val) {
+						if (Number(val.toFixed(0)) >= 10 && amISad) {
+							amISad = false;
+							ConfirmDialog('You look tired, Want to Stop?');
+							// selectedObject = scene.getObjectByName("test");
+							// loader.load( charAnimation[2], charLoader);
+							// sound.play();
+							// scene.remove(selectedObject);
+						}
+						return val.toFixed ? Number(val.toFixed(0)) : val;
+					}));
+				}
+			});
+		};
+
+		animate();
+
+	</script>
+</body>
+</html>
